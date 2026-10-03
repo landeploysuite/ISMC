@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ISMC — Interplanetary Satellite Mesh Communication 3D Simulation. Visualize data transmission from Earth through a satellite relay mesh to Mars.">
+    <title>ISMC — Interplanetary Satellite Mesh Communication</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <div class="loader-ring">
+                <div class="ring-segment"></div>
+                <div class="ring-segment"></div>
+                <div class="ring-segment"></div>
+            </div>
+            <h1 class="loader-title">ISMC</h1>
+            <p class="loader-subtitle">Interplanetary Satellite Mesh Communication</p>
+            <div class="loader-bar">
+                <div class="loader-bar-fill" id="loader-bar-fill"></div>
+            </div>
+            <p class="loader-status" id="loader-status">Initializing simulation...</p>
+        </div>
+    </div>
+
+    <!-- Scanline Overlay -->
+    <div id="scanline-overlay"></div>
+
+    <!-- Vignette -->
+    <div id="vignette-overlay"></div>
+
+    <!-- 3D Canvas -->
+    <canvas id="simulation-canvas"></canvas>
+
+    <!-- Top HUD Bar -->
+    <header id="top-hud">
+        <div class="hud-left">
+            <div class="hud-logo">
+                <span class="logo-icon">◈</span>
+                <span class="logo-text">ISMC</span>
+                <span class="logo-version">v2.0</span>
+            </div>
+            <div class="hud-divider"></div>
+            <div class="hud-stat" id="hud-status">
+                <span class="stat-label">STATUS</span>
+                <span class="stat-value" id="status-value">IDLE</span>
+            </div>
+            <div class="hud-divider"></div>
+            <div class="hud-stat">
+                <span class="stat-label">MISSION TIME</span>
+                <span class="stat-value" id="mission-time">00:00:00</span>
+            </div>
+        </div>
+        <div class="hud-center">
+            <div class="hud-stat" id="hud-hop">
+                <span class="stat-label">CURRENT HOP</span>
+                <span class="stat-value" id="hop-value">—</span>
+            </div>
+        </div>
+        <div class="hud-right">
+            <div class="hud-stat">
+                <span class="stat-label">SIGNAL</span>
+                <div class="signal-bar-container">
+                    <div class="signal-bar" id="signal-bar-1"></div>
+                    <div class="signal-bar" id="signal-bar-2"></div>
+                    <div class="signal-bar" id="signal-bar-3"></div>
+                    <div class="signal-bar" id="signal-bar-4"></div>
+                    <div class="signal-bar" id="signal-bar-5"></div>
+                </div>
+                <span class="stat-value" id="signal-value">—</span>
+            </div>
+            <div class="hud-divider"></div>
+            <div class="hud-stat">
+                <span class="stat-label">LATENCY</span>
+                <span class="stat-value" id="latency-value">—</span>
+            </div>
+            <div class="hud-divider"></div>
+            <div class="hud-stat">
+                <span class="stat-label">DISTANCE</span>
+                <span class="stat-value" id="distance-value">—</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Transmission Progress -->
+    <div id="transmission-progress" class="hidden">
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+            <div class="progress-glow" id="progress-glow"></div>
+        </div>
+        <div class="progress-nodes" id="progress-nodes"></div>
+    </div>
+
+    <!-- Left Data Panel -->
+    <aside id="data-panel">
+        <div class="panel-header">
+            <span class="panel-icon">⬡</span>
+            <span>TELEMETRY</span>
+            <span class="panel-live-dot"></span>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">PACKET DATA</label>
+            <div class="data-readout">
+                <div class="readout-row">
+                    <span class="readout-key">TYPE</span>
+                    <span class="readout-val" id="data-type">SCIENCE PKT</span>
+                </div>
+                <div class="readout-row">
+                    <span class="readout-key">SIZE</span>
+                    <span class="readout-val" id="data-size">2.4 MB</span>
+                </div>
+                <div class="readout-row">
+                    <span class="readout-key">ENCODING</span>
+                    <span class="readout-val" id="data-encoding">LDPC-4096</span>
+                </div>
+                <div class="readout-row">
+                    <span class="readout-key">FREQ</span>
+                    <span class="readout-val" id="data-freq">8.4 GHz (X)</span>
+                </div>
+                <div class="readout-row">
+                    <span class="readout-key">BIT RATE</span>
+                    <span class="readout-val" id="data-bitrate">— kbps</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">SIGNAL WAVEFORM</label>
+            <canvas id="waveform-canvas" width="220" height="60"></canvas>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">NETWORK TOPOLOGY</label>
+            <canvas id="topology-canvas" width="220" height="100"></canvas>
+        </div>
+    </aside>
+
+    <!-- Control Panel -->
+    <aside id="control-panel">
+        <div class="panel-header">
+            <span class="panel-icon">⟐</span>
+            <span>MISSION CONTROL</span>
+        </div>
+
+        <div class="panel-section">
+            <button id="btn-send-data" class="btn-primary">
+                <span class="btn-icon">◉</span>
+                <span>TRANSMIT DATA</span>
+            </button>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">SIMULATION SPEED</label>
+            <div class="slider-container">
+                <input type="range" id="speed-slider" min="0.25" max="5" step="0.25" value="1">
+                <span class="slider-value" id="speed-value">1.0x</span>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">CAMERA VIEW</label>
+            <div class="camera-buttons">
+                <button class="btn-cam active" data-view="overview">OVERVIEW</button>
+                <button class="btn-cam" data-view="earth">EARTH</button>
+                <button class="btn-cam" data-view="mars">MARS</button>
+                <button class="btn-cam" data-view="follow">FOLLOW</button>
+                <button class="btn-cam" data-view="cinematic">CINEMATIC</button>
+                <button class="btn-cam" data-view="top">TOP DOWN</button>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">DISPLAY</label>
+            <div class="toggle-group">
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-labels" checked>
+                    <span class="toggle-switch"></span>
+                    <span>Labels</span>
+                </label>
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-orbits" checked>
+                    <span class="toggle-switch"></span>
+                    <span>Orbits</span>
+                </label>
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-grid" checked>
+                    <span class="toggle-switch"></span>
+                    <span>Grid</span>
+                </label>
+                <label class="toggle-item">
+                    <input type="checkbox" id="toggle-scanlines" checked>
+                    <span class="toggle-switch"></span>
+                    <span>Scanlines</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <label class="control-label">TRANSMISSION LOG</label>
+            <div class="log-container" id="log-container">
+                <div class="log-entry">
+                    <span class="log-time">00:00:00</span>
+                    <span class="log-msg">System initialized. Ready to transmit.</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Info Tooltip -->
+    <div id="info-tooltip" class="hidden">
+        <div class="tooltip-header" id="tooltip-title">—</div>
+        <div class="tooltip-body" id="tooltip-body">—</div>
+    </div>
+
+    <!-- Corner Decorations -->
+    <div class="corner-decor top-left"></div>
+    <div class="corner-decor top-right"></div>
+    <div class="corner-decor bottom-left"></div>
+    <div class="corner-decor bottom-right"></div>
+
+    <!-- Bottom Info Bar -->
+    <footer id="bottom-bar">
+        <div class="bottom-left-info">
+            <span class="bottom-indicator"></span>
+            <span>ISMC v2.0 — Interplanetary Satellite Mesh Communication</span>
+        </div>
+        <div class="bottom-center-info">
+            <span id="coord-display">X: 0.0 | Y: 0.0 | Z: 0.0</span>
+        </div>
+        <div class="bottom-right-info">
+            <span id="obj-count">OBJ: —</span>
+            <span class="bottom-separator">|</span>
+            <span id="fps-counter">60 FPS</span>
+        </div>
+    </footer>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
